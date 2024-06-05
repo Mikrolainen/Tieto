@@ -4,14 +4,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bananamees</title>
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous"
     >
+    <style>
+        .admin-login {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
 </head>
-
 <body>
     <div class="container">
         <h1>Bananaman.ru</h1><br>
+        
+        <a href="admin.php" class="btn btn-primary admin-login">Admin Login</a>
 
         <form method="get">
             <label for="otsi">Otsi asukohta</label><br>
@@ -31,12 +40,18 @@
             <tbody>
                 <?php
                 $itemsPerPage = 10;
-                $page = isset($_GET['leht']) ? $_GET['leht'] : 1;
+                $page = isset($_GET['leht']) ? (int)$_GET['leht'] : 1;
                 $offset = ($page - 1) * $itemsPerPage;
                 $sortColumn = isset($_GET['sort']) ? $_GET['sort'] : 'nimi';
                 $sortOrder = isset($_GET['order']) ? $_GET['order'] : 'asc';
                 $searchTerm = isset($_GET['otsi']) ? $_GET['otsi'] : '';
                 $searchQuery = $searchTerm ? "WHERE nimi LIKE '%$searchTerm%'" : '';
+
+                // Kogu elementide arvu päring
+                $queryTotalItems = "SELECT COUNT(*) as total FROM asukohad $searchQuery";
+                $totalItemsResult = $yhendus->query($queryTotalItems);
+                $totalItems = $totalItemsResult->fetch_assoc()['total'];
+                $totalPages = ceil($totalItems / $itemsPerPage);
 
                 $queryLocations = "SELECT * FROM asukohad $searchQuery ORDER BY $sortColumn $sortOrder LIMIT $offset, $itemsPerPage";
                 $result = $yhendus->query($queryLocations);
@@ -46,11 +61,11 @@
                         $locationName = $row['nimi'];
                         $locationId = $row['id'];
 
-                        $queryRatingsCount = "SELECT COUNT(hinnang) AS ratings_count FROM hinnangud WHERE id = '$locationId'";
+                        $queryRatingsCount = "SELECT COUNT(hinnang) AS ratings_count FROM hinnangud WHERE asukohad_id = '$locationId'";
                         $ratingsResult = $yhendus->query($queryRatingsCount);
                         $ratingsCount = $ratingsResult->fetch_assoc()['ratings_count'];
 
-                        $queryAverageRating = "SELECT AVG(hinnang) AS average_rating FROM hinnangud WHERE id = '$locationId'";
+                        $queryAverageRating = "SELECT AVG(hinnang) AS average_rating FROM hinnangud WHERE asukohad_id = '$locationId'";
                         $averageRatingResult = $yhendus->query($queryAverageRating);
                         $averageRating = $averageRatingResult->fetch_assoc()['average_rating'];
                         $averageRatingRounded = round($averageRating, 1);
@@ -59,7 +74,7 @@
                         $yhendus->query($updateQuery);
                         ?>
                         <tr>
-                            <td><a href="hinnang.php?koht=<?php echo urlencode($locationId); ?>"><?php echo $row["nimi"]; ?></a></td>
+                            <td><a href="hindamine.php?asukoht=<?php echo urlencode($locationId); ?>"><?php echo $row["nimi"]; ?></a></td>
                             <td><?php echo $row["asukoht"]; ?></td>
                             <td><?php echo $averageRatingRounded; ?></td>
                             <td><?php echo $ratingsCount; ?></td>
@@ -71,19 +86,15 @@
             </tbody>
         </table>
 
-        <?php
-        $previousPage = $page - 1;
-        $nextPage = $page + 1;
-
-        if ($previousPage > 0) {
-            echo "<a href='?leht=$previousPage'>&lt;Last page</a>";
-        }
-        if ($result->num_rows == $itemsPerPage) {
-            echo "<a href='?leht=$nextPage'>  Next Page &gt;</a>";
-        }
-        ?>
-
+        <div class="pagination">
+            <?php if ($page > 1): ?>
+                <a href="?leht=<?php echo $page - 1; ?>&otsi=<?php echo urlencode($searchTerm); ?>" class="btn btn-primary">&lt; Eelmine lk</a>
+            
+            <?php endif; ?>
+            <?php if ($page < $totalPages): ?>
+                <a href="?leht=<?php echo $page + 1; ?>&otsi=<?php echo urlencode($searchTerm); ?>" class="btn btn-primary">Järgmine lk &gt;</a>
+            <?php endif; ?>
+        </div>
     </div>
-        </script>
-    </body>
-</html> 
+</body>
+</html>

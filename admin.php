@@ -4,14 +4,14 @@ session_start();
 if (!isset($_SESSION['tuvastamine'])) {
   header('Location: login.php');
   exit();
-  }
+}
 ?>
 <!DOCTYPE html>
-<html lang="et">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>banan</title>
+    <title>Banana</title>
 
     <link
         href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous"
@@ -26,73 +26,77 @@ if (!isset($_SESSION['tuvastamine'])) {
 </head>
 <body>
     <div class="container">
-        <h1>sookida niminekiri</h1>
-        <a href="logout.php" class="btn btn-primary admin-login">LOGOUT</a>
+        <h1>Bananaman.ru</h1>
+        <form action="logout.php" method="post" class="btn admin-login">
+         <input type="submit" value="Logi välja" name="logout">
+        </form>
         <hr>
+        
+        <a href="index.php" class="btn btn-primary mb-3">Tagasi</a>
 
         <form method="get">
-            <label for="otsi">otsi kohta: </label>
+            <label for="otsi">Otsi asukohta</label><br>
             <input type="text" name="otsi" id="otsi">
-            <input type="submit" class="btn btn-primary my-2" value="Otsi">
+            <input type="submit" class="btn btn-primary my-2" value="otsi">
         </form>
 
-        <a href="addmaja.php">lisa koht</a>
+        <a href="lisaasukoht.php" class="btn btn-success my-2">LISA ASUKOHT</a>
 
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th scope="col">nimi <a href="?sort=nimi&order=asc">↑ </a> / <a href="?sort=nimi&order=desc">↓</a></th>
-                    <th scope="col">asukoht <a href="?sort=asukoht&order=asc">↑ </a> / <a href="?sort=asukoht&order=desc">↓</a></th>
-                    <th scope="col">keskmine hinne <a href="?sort=keskmine_hinne&order=asc">↑ </a> / <a href="?sort=keskmine_hinne&order=desc">↓</a></th>
-                    <th scope="col">hinnanute arv <a href="?sort=hinnanute_arv&order=asc">↑ </a> / <a href="?sort=hinnanute_arv&order=desc">↓</a></th>
-                    <th scope="col">admin</th>
+                    <th scope="col">Nimi</th>
+                    <th scope="col">Asukoht</th>
+                    <th scope="col">Keskmine Hinne</th>
+                    <th scope="col">Hinnatud</th>
+                    <th scope="col">Admin</th>
                 </tr>
             </thead>
             <tbody>
                 <?php
-                $lehekyljeSuurus = 10;
-                if (isset($_GET['lehekylg'])) {
-                    $lehekylg = $_GET['lehekylg'];
-                } else {
-                    $lehekylg = 1;
-                }
+                $itemsPerPage = 10;
+                $page = isset($_GET['leht']) ? (int)$_GET['leht'] : 1;
+                $offset = ($page - 1) * $itemsPerPage;
+                $sortColumn = isset($_GET['sort']) ? $_GET['sort'] : 'nimi';
+                $sortOrder = isset($_GET['order']) ? $_GET['order'] : 'asc';
+                $searchTerm = isset($_GET['otsi']) ? $_GET['otsi'] : '';
+                $searchQuery = $searchTerm ? "WHERE nimi LIKE '%$searchTerm%'" : '';
 
-                $start = ($lehekylg-1) * $lehekyljeSuurus;
-                $sort = isset($_GET['sort']) ? $_GET['sort'] : 'nimi';
-                $order = isset($_GET['order']) ? $_GET['order'] : 'asc';
+                // Kogu elementide arvu päring
+                $queryTotalItems = "SELECT COUNT(*) as total FROM asukohad $searchQuery";
+                $totalItemsResult = $yhendus->query($queryTotalItems);
+                $totalItems = $totalItemsResult->fetch_assoc()['total'];
+                $totalPages = ceil($totalItems / $itemsPerPage);
 
-                $otsi = isset($_GET['otsi']) ? $_GET['otsi'] : '';
-                $sql_otsi = $otsi ? "WHERE nimi LIKE '%$otsi%'" : '';
-
-                $sql_kohad = "SELECT * FROM kohad $sql_otsi ORDER BY $sort $order LIMIT $start, $lehekyljeSuurus";
-                $result = $yhendus -> query($sql_kohad);                     
-
-                if ($result->num_rows > 0){
-                    while ($row = $result -> fetch_assoc()){
+                $queryLocations = "SELECT * FROM asukohad $searchQuery ORDER BY $sortColumn $sortOrder LIMIT $offset, $itemsPerPage";
+                $result = $yhendus->query($queryLocations);
+                
+                if ($result->num_rows > 0) {
+                    while ($row = $result->fetch_assoc()) {
                         $id = $row['id'];
 
-                        $hinnanutearvquery = "SELECT COUNT(*) as hinnanute_arv FROM hinnangud WHERE id_koht = '$id'";
-                        $hinnanutevastus = $yhendus -> query($hinnanutearvquery);
-                        $hinnanutearvfetch = $hinnanutevastus -> fetch_assoc()['hinnanute_arv'];
+                        $ratingCountQuery = "SELECT COUNT(*) as rating_count FROM hinnangud WHERE asukohad_id = '$id'";
+                        $ratingCountResult = $yhendus->query($ratingCountQuery);
+                        $ratingCount = $ratingCountResult->fetch_assoc()['rating_count'];
 
-                        $keskminehinnequery = "SELECT AVG(hinnang) as keskmine_hinne FROM hinnangud WHERE id_koht = '$id'";
-                        $keskminehinnevastus = $yhendus -> query($keskminehinnequery);
-                        $keskminehinnefetch = $keskmineHinneResult -> fetch_assoc()['keskmine_hinne'];
-                        $keskminehinneumarda = round($keskminehinnefetch,1);
+                        $averageRatingQuery = "SELECT AVG(hinnang) as average_rating FROM hinnangud WHERE asukohad_id = '$id'";
+                        $averageRatingResult = $yhendus->query($averageRatingQuery);
+                        $averageRating = $averageRatingResult->fetch_assoc()['average_rating'];
+                        $roundedAverageRating = round($averageRating, 1);
 
-                        $lisamiseupdate = "UPDATE kohad SET keskmine_hinne = '$keskminehinneumarda', hinnanute_arv = '$hinnanutearvfetch' WHERE id = '$id'";
-                        $lisamisevastus = $yhendus -> query($lisamiseParing);
-
-                        $leiakoikhinnangud = "SELECT * FROM hinnangud";
-                        $hinnangudtulemus = $yhendus -> query($leiakoikhinnangud);
+                        $updateQuery = "UPDATE asukohad SET kesk_hinne = '$roundedAverageRating', hinnete_arv = '$ratingCount' WHERE id = '$id'";
+                        $updateResult = $yhendus->query($updateQuery);
                         ?>
 
                         <tr>
-                            <td> <a href="lisahinnang.php?koht=<?php echo urlencode($id); ?> "> <?php echo $row["nimi"]; ?></a></td>
-                            <td> <?php echo $row["asukoht"]; ?> </td>
-                            <td> <?php echo round($keskmineHinne, 1);?> </td>
-                            <td> <?php echo $hinnanuteArv; ?> </td>
-                            <td><a href="muudahoone.php?koht= <?php echo urlencode($id); ?> ">muuda</a><a> / </a> <?php echo "<a href='kustutahoone.php?koht=" . $id . "'>kustuta</a>"; ?></td>
+                            <td><?php echo $row["nimi"]; ?></td>
+                            <td><?php echo $row["asukoht"]; ?></td>
+                            <td><?php echo $roundedAverageRating; ?></td>
+                            <td><?php echo $ratingCount; ?></td>
+                            <td>
+                                <a href="editasukoht.php?location=<?php echo urlencode($id); ?>" class="btn btn-warning btn-sm">Edit</a>
+                                <a href='kustuta.php?location=<?php echo $id; ?>' class="btn btn-danger btn-sm">Delete</a>
+                            </td>
                         </tr>
                         <?php
                     }
@@ -101,20 +105,17 @@ if (!isset($_SESSION['tuvastamine'])) {
             </tbody>
         </table>
 
-        <?php
-        $eelminelehekylg = $lehekylg - 1;
-        $jargminelehekylg = $lehekylg + 1;
-
-        if ($eelminelehekylg > 0) {
-            echo "<a href='?lehekylg=$eelminelehekylg'>&lt; Eelmised</a>";
-        }
-        if ($result -> num_rows == $lehekyljeSuurus) {
-            echo "<a href='?lehekylg=$jargminelehekylg'> Järgmised &gt;</a>";
-        }
-        ?>
-        <br>
+        <div class="pagination">
+            <?php if ($page > 1): ?>
+                <a href="?leht=<?php echo $page - 1; ?>&otsi=<?php echo urlencode($searchTerm); ?>" class="btn btn-primary">&lt; Eelmine lk</a>
+            
+            <?php endif; ?>
+            <?php if ($page < $totalPages): ?>
+                <a href="?leht=<?php echo $page + 1; ?>&otsi=<?php echo urlencode($searchTerm); ?>" class="btn btn-primary">Järgmine lk &gt;</a>
+            <?php endif; ?>
+        </div>
 
         <?php $yhendus->close(); ?>   
     </div>
-    </body>
-</html> 
+</body>
+</html>
